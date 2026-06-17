@@ -1,23 +1,17 @@
+import os
 import telebot
 import requests
 from keep_alive import keep_alive
 
-# আপনার দেওয়া টেলিগ্রাম বট টোকেন
-BOT_TOKEN = "8825223673:AAF1_AwkZ0WAoQNDBHcxU2PlOxCkLsdCnZo"
+# Render Environment Variables থেকে টোকেন এবং কী নেওয়া হচ্ছে
+BOT_TOKEN = os.environ.get("BOT_TOKEN", "8825223673:AAF1_AwkZ0WAoQNDBHcxU2PlOxCkLsdCnZo")
+API_KEY = os.environ.get("API_KEY", "NURAD_FD980978DCC029BBA17259DB") 
 
-# স্ক্রিনশট থেকে নেওয়া আপনার আসল API Key
-API_KEY = "NURAD_FD980978DCC029BBA17259DB" 
-
-# API বেস URL
 BASE_URL = "http://fastxotps.com"
 
-# বট অবজেক্ট তৈরি
 bot = telebot.TeleBot(BOT_TOKEN)
-
-# ব্যবহারকারীর সাময়িক ডেটা রাখার ডিকশনারি
 user_sessions = {}
 
-# /start কমান্ড হ্যান্ডলার
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
     markup = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True)
@@ -30,14 +24,14 @@ def send_welcome(message):
     )
     bot.reply_to(message, welcome_msg, reply_markup=markup)
 
-# বোতামের টেক্সট হ্যান্ডলার (নাম্বার নেওয়ার জন্য)
 @bot.message_handler(func=lambda message: message.text == "📱 নতুন নাম্বার নিন (Get Number)")
 def get_number_request(message):
     chat_id = message.chat.id
     bot.send_message(chat_id, "⏳ সার্ভার থেকে নাম্বার খোঁজা হচ্ছে, দয়া করে অপেক্ষা করুন...")
 
+    # ওটিপি প্যানেল অনুযায়ী সঠিক হেডারস
     headers = {
-        "X-API-Key": API_KEY,
+        "X-API-Key": API_KEY.strip(),  # কোনো স্পেস থাকলে তা রিমুভ করবে
         "Content-Type": "application/json"
     }
     payload = {
@@ -50,7 +44,7 @@ def get_number_request(message):
         if response.status_code == 200:
             res_data = response.json()
             
-            if res_data.get("meta", {}).get("status") == "ok":
+            if res_data.get("meta", {}).get("status") == "ok" or res_data.get("message") == "number allocated":
                 num_info = res_data.get("data", {})
                 number_id = num_info.get("number_id")
                 phone_number = num_info.get("full_number")
@@ -71,14 +65,14 @@ def get_number_request(message):
                 )
                 bot.send_message(chat_id, success_msg, parse_mode="Markdown", reply_markup=inline_markup)
             else:
-                bot.send_message(chat_id, "❌ সার্ভার বর্তমানে কোনো নাম্বার দিতে পারেনি। আবার চেষ্টা করুন।")
+                error_msg = res_data.get("message", "সার্ভার বর্তমানে কোনো নাম্বার দিতে পারেনি।")
+                bot.send_message(chat_id, f"❌ সার্ভার মেসেজ: {error_msg}")
         else:
-            bot.send_message(chat_id, f"❌ এপিআই সমস্যা! স্ট্যাটাস কোড: {response.status_code}")
+            bot.send_message(chat_id, f"❌ এপিআই সমস্যা! স্ট্যাটাস কোড: {response.status_code}\n(আপনার API Key টি সঠিক কিনা প্যানেল থেকে চেক করুন)")
             
     except Exception as e:
         bot.send_message(chat_id, f"⚠️ একটি ত্রুটি ঘটেছে: {str(e)}")
 
-# ইনলাইন বোতামের (OTP Check) হ্যান্ডলার
 @bot.callback_query_handler(func=lambda call: call.data == "check_otp")
 def check_otp_callback(call):
     chat_id = call.message.chat.id
@@ -93,7 +87,7 @@ def check_otp_callback(call):
     bot.answer_callback_query(call.id, "⏳ ওটিপি চেক করা হচ্ছে...")
     
     headers = {
-        "X-API-Key": API_KEY
+        "X-API-Key": API_KEY.strip()
     }
     
     try:
@@ -107,9 +101,7 @@ def check_otp_callback(call):
     except Exception as e:
         bot.send_message(chat_id, f"⚠️ ওটিপি চেক করতে সমস্যা হয়েছে: {str(e)}")
 
-# বট চালু করার মেইন ফাংশন
 if __name__ == "__main__":
-    # ব্যাকগ্রাউন্ডে ফ্ল্যাস্ক ওয়েব সার্ভার স্টার্ট করা হচ্ছে রেন্ডারের জন্য
     keep_alive()
-    print("Bot has been successfully deployed and running 24/7...")
+    print("Bot is successfully deploying on Render...")
     bot.infinity_polling()
