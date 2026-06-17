@@ -3,11 +3,17 @@ import telebot
 import requests
 from keep_alive import keep_alive
 
-# Render Environment Variables থেকে টোকেন এবং কী নেওয়া হচ্ছে
-BOT_TOKEN = os.environ.get("BOT_TOKEN", "8825223673:AAF1_AwkZ0WAoQNDBHcxU2PlOxCkLsdCnZo")
-API_KEY = os.environ.get("API_KEY", "NURAD_FD980978DCC029BBA17259DB") 
+# টোকেন ভ্যারিয়েবল
+BOT_TOKEN = "8825223673:AAEl-C6aGSJrg8KgzYSypRvH_PwwbZb3EtU"
 
-# প্যানেল অনুযায়ী বেস ইউআরএল (HTTP)
+# আপনার প্যানেলের সম্পূর্ণ API Key (কোড নিজেই ভেতরের সব স্পেস বা এন্টার কেটে ফ্রেশ করে নেবে)
+RAW_API_KEY = """
+NURAD_FD980978DCC029BBA17259DB
+"""
+# কী-এর ভেতরের যেকোনো অদৃশ্য স্পেস, ট্যাব বা নিউ-লাইন পরিষ্কার করার লজিক
+API_KEY = RAW_API_KEY.replace("\n", "").replace("\r", "").strip()
+
+# প্যানেল অনুযায়ী বেস ইউআরএল (HTTP প্রোটোকল)
 BASE_URL = "http://fastxotps.com"
 
 bot = telebot.TeleBot(BOT_TOKEN)
@@ -25,36 +31,30 @@ def send_welcome(message):
     )
     bot.reply_to(message, welcome_msg, reply_markup=markup)
 
-# ১. ব্যবহারকারী যখন নাম্বার বোতামে চাপ দেবেন
 @bot.message_handler(func=lambda message: message.text == "📱 নতুন নাম্বার নিন (Get Number)")
 def ask_for_range(message):
     chat_id = message.chat.id
-    # ব্যবহারকারীকে পরবর্তী মেসেজে রেঞ্জ টাইপ করতে বলা হচ্ছে (register_next_step_handler)
     msg = bot.send_message(chat_id, "🔢 **দয়া করে আপনার কাঙ্ক্ষিত রেঞ্জটি টাইপ করে পাঠান।**\n\n👉 উদাহরণ: `224694XXXX` বা `226234XXXX`", parse_mode="Markdown")
     bot.register_next_step_handler(msg, process_number_request_with_range)
 
-# ২. ব্যবহারকারীর পাঠানো রেঞ্জটি রিসিভ করে এপিআই-তে পাঠানো
 def process_number_request_with_range(message):
     chat_id = message.chat.id
-    user_range = message.text.strip() # ব্যবহারকারীর পাঠানো কাস্টম রেঞ্জ
+    user_range = message.text.strip()
 
-    # রেঞ্জ ফরম্যাট কিছুটা ভ্যালিডেশন চেক (খুব বেশি ছোট বা স্টার্ট কমান্ড হলে ক্যানসেল করবে)
     if user_range.startswith('/') or len(user_range) < 5:
-        bot.send_message(chat_id, "❌ ইনভ্যালিড রেঞ্জ ফরম্যাট! আবার 'নতুন নাম্বার নিন' বোতামে চাপ দিয়ে সঠিক রেঞ্জ লিখুন।")
+        bot.send_message(chat_id, "❌ ইনভ্যালিড রেঞ্জ ফরম্যাট! আবার বোতামে চাপ দিয়ে সঠিক রেঞ্জ লিখুন।")
         return
 
-    bot.send_message(chat_id, f"⏳ রেঞ্জ `{user_range}` থেকে নাম্বার খোঁজা হচ্ছে, দয়া করে অপেক্ষা করুন...", parse_mode="Markdown")
+    bot.send_message(chat_id, f"⏳ রেঞ্জ `{user_range}` থেকে নাম্বার খোঁজা হচ্ছে...", parse_mode="Markdown")
 
-    # অথেন্টিকেশন হেডার
-    api_key_clean = API_KEY.strip()
+    # ওটিপি প্যানেল ডকস অনুযায়ী কাস্টম হেডার ফরম্যাট
     headers = {
-        "Authorization": f"Bearer {api_key_clean}",
-        "X-API-Key": api_key_clean,
+        "X-API-Key": API_KEY,
+        "Authorization": f"Bearer {API_KEY}",
         "Content-Type": "application/json",
         "Accept": "application/json"
     }
     
-    # আপনার দেওয়া কাস্টম রেঞ্জটি এখানে ডাইনামিকালি বসে যাচ্ছে
     payload = {
         "range": user_range 
     }
@@ -90,8 +90,7 @@ def process_number_request_with_range(message):
                 error_msg = res_data.get("message", "সার্ভার বর্তমানে এই রেঞ্জের কোনো নাম্বার দিতে পারেনি।")
                 bot.send_message(chat_id, f"❌ সার্ভার মেসেজ: {error_msg}")
         else:
-            # এরর রেসপন্স সরাসরি চ্যাটে প্রিন্ট হবে
-            bot.send_message(chat_id, f"❌ এপিআই সমস্যা! স্ট্যাটাস কোড: {response.status_code}\n\n📝 সার্ভার রেসপন্স: {response.text[:300]}")
+            bot.send_message(chat_id, f"❌ এপিআই সমস্যা! স্ট্যাটাস কোড: {response.status_code}\n\n📝 সার্ভার রেসপন্স: {response.text}")
             
     except Exception as e:
         bot.send_message(chat_id, f"⚠️ একটি ত্রুটি ঘটেছে: {str(e)}")
@@ -109,10 +108,9 @@ def check_otp_callback(call):
     
     bot.answer_callback_query(call.id, "⏳ ওটিপি চেক করা হচ্ছে...")
     
-    api_key_clean = API_KEY.strip()
     headers = {
-        "Authorization": f"Bearer {api_key_clean}",
-        "X-API-Key": api_key_clean,
+        "X-API-Key": API_KEY,
+        "Authorization": f"Bearer {API_KEY}",
         "Content-Type": "application/json",
         "Accept": "application/json"
     }
@@ -140,12 +138,12 @@ def check_otp_callback(call):
             else:
                 bot.send_message(chat_id, f"📩 `{phone_number}` নাম্বারে ওটিপি অপেক্ষমাণ। মেসেজ সার্ভারে পৌঁছালে কোড চলে আসবে।")
         else:
-            bot.send_message(chat_id, f"❌ ওটিপি এপিআই ত্রুটি! স্ট্যাটাস কোড: {response.status_code}\n\n📝 রেসপন্স: {response.text[:300]}")
+            bot.send_message(chat_id, f"❌ ওটিপি এপিআই ত্রুটি! স্ট্যাটাস কোড: {response.status_code}\n\n📝 রেসপন্স: {response.text}")
             
     except Exception as e:
         bot.send_message(chat_id, f"⚠️ ওটিপি চেক করতে সমস্যা হয়েছে: {str(e)}")
 
 if __name__ == "__main__":
     keep_alive()
-    print("Bot updated with Dynamic Range Configuration...")
+    print("Bot completely fixed with Auto-Cleaning API configuration...")
     bot.infinity_polling()
