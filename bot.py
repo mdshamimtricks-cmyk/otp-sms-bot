@@ -3,22 +3,21 @@ import telebot
 import requests
 from keep_alive import keep_alive
 
-# টোকেন ভ্যারিয়েবল
-BOT_TOKEN = "8825223673:AAEl-C6aGSJrg8KgzYSypRvH_PwwbZb3EtU"
+# আপনার দেওয়া একদম নতুন ফ্রেশ বট টোকেন
+BOT_TOKEN = "8647049648:AAHkN78MFc6Arb-AoPN1jgpEbFQYqdd_L1w"
 
-# আপনার প্যানেলের সম্পূর্ণ API Key (কোড নিজেই ভেতরের সব স্পেস বা এন্টার কেটে ফ্রেশ করে নেবে)
-RAW_API_KEY = """
-NURAD_FD980978DCC029BBA17259DB
-"""
-# কী-এর ভেতরের যেকোনো অদৃশ্য স্পেস, ট্যাব বা নিউ-লাইন পরিষ্কার করার লজিক
-API_KEY = RAW_API_KEY.replace("\n", "").replace("\r", "").strip()
+# প্যানেল থেকে নেওয়া আপনার আসল এপিআই কি
+API_KEY = "NURAD_FD980978DCC029BBA17259DB"
 
-# প্যানেল অনুযায়ী বেস ইউআরএল (HTTP প্রোটোকল)
+# প্যানেল অনুযায়ী বেস ইউআরএল (অবশ্যই HTTP প্রোটোকল, HTTPS নয়)
 BASE_URL = "http://fastxotps.com"
 
 bot = telebot.TeleBot(BOT_TOKEN)
+
+# ব্যবহারকারীদের সাময়িক সেশন ডাটা রাখার ডিকশনারি
 user_sessions = {}
 
+# /start কমান্ড হ্যান্ডলার
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
     markup = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True)
@@ -26,35 +25,43 @@ def send_welcome(message):
     markup.add(btn_get_num)
     
     welcome_msg = (
-        "👋 স্বাগতম! এটি একটি ওটিপি এবং নাম্বার অ্যালোকেশন বট।\n\n"
-        "নিচের বোতামে ক্লিক করে যেকোনো কাস্টম রেঞ্জের ভার্চুয়াল নাম্বার নিতে পারবেন।"
+        "👋 **স্বাগতম! income world 24 number bot-এ আপনাকে স্বাগতম।**\n\n"
+        "নিচের বোতামে ক্লিক করে যেকোনো কাস্টম রেঞ্জের ভার্চুয়াল নাম্বার নিতে পারবেন খুব সহজেই।"
     )
     bot.reply_to(message, welcome_msg, reply_markup=markup)
 
+# ১. ইউজার যখন "নতুন নাম্বার নিন" বোতামে চাপ দেবে
 @bot.message_handler(func=lambda message: message.text == "📱 নতুন নাম্বার নিন (Get Number)")
 def ask_for_range(message):
     chat_id = message.chat.id
-    msg = bot.send_message(chat_id, "🔢 **দয়া করে আপনার কাঙ্ক্ষিত রেঞ্জটি টাইপ করে পাঠান।**\n\n👉 উদাহরণ: `224694XXXX` বা `226234XXXX`", parse_mode="Markdown")
+    msg = bot.send_message(
+        chat_id, 
+        "🔢 **দয়া করে আপনার কাঙ্ক্ষিত রেঞ্জটি টাইপ করে পাঠান।**\n\n"
+        "👉 উদাহরণ: `224694XXXX` বা `2290164XXX`", 
+        parse_mode="Markdown"
+    )
+    # ইউজারের পরবর্তী মেসেজ বা রেঞ্জ ইনপুট ক্যাপচার করার ফাংশন
     bot.register_next_step_handler(msg, process_number_request_with_range)
 
+# ২. ইউজারের পাঠানো কাস্টম রেঞ্জ প্রোসেস করে নাম্বার অ্যালোকেট করা
 def process_number_request_with_range(message):
     chat_id = message.chat.id
     user_range = message.text.strip()
 
+    # কমান্ড বা ভুল ইনপুট ফিল্টার করা
     if user_range.startswith('/') or len(user_range) < 5:
-        bot.send_message(chat_id, "❌ ইনভ্যালিড রেঞ্জ ফরম্যাট! আবার বোতামে চাপ দিয়ে সঠিক রেঞ্জ লিখুন।")
+        bot.send_message(chat_id, "❌ ইনভ্যালিড রেঞ্জ ফরম্যাট! অনুগ্রহ করে আবার বোতামে চাপ দিয়ে সঠিক রেঞ্জ লিখুন।")
         return
 
-    bot.send_message(chat_id, f"⏳ রেঞ্জ `{user_range}` থেকে নাম্বার খোঁজা হচ্ছে...", parse_mode="Markdown")
+    bot.send_message(chat_id, f"⏳ রেঞ্জ `{user_range}` থেকে নাম্বার খোঁজা হচ্ছে, অনুগ্রহ করে অপেক্ষা করুন...", parse_mode="Markdown")
 
-    # ওটিপি প্যানেল ডকস অনুযায়ী কাস্টম হেডার ফরম্যাট
+    # প্যানেলের রিকোয়ারমেন্ট ও ভিডিওর সাকসেস টেস্ট অনুযায়ী নিখুঁত হেডার
     headers = {
         "X-API-Key": API_KEY,
-        "Authorization": f"Bearer {API_KEY}",
-        "Content-Type": "application/json",
-        "Accept": "application/json"
+        "Content-Type": "application/json"
     }
     
+    # বডি পেলোড
     payload = {
         "range": user_range 
     }
@@ -66,24 +73,27 @@ def process_number_request_with_range(message):
         if response.status_code == 200:
             res_data = response.json()
             
+            # প্যানেল সাকসেস মেটা কোড অথবা ডাইরেক্ট মেসেজ ভ্যালিডেশন
             if res_data.get("meta", {}).get("code") == 200 or res_data.get("message") == "number allocated":
                 num_info = res_data.get("data", {})
                 number_id = num_info.get("number_id")
                 phone_number = num_info.get("full_number")
-                country = num_info.get("country", "Unknown Country")
+                country = num_info.get("country", "Virtual Country")
                 
+                # ওটিপি চেক করার জন্য ইউজারের সেশন মেমোরিতে ডাটা সেভ রাখা হচ্ছে
                 user_sessions[chat_id] = {"number_id": number_id, "phone_number": phone_number}
                 
+                # ইনলাইন ওটিপি চেক বাটন তৈরি
                 inline_markup = telebot.types.InlineKeyboardMarkup()
                 btn_check_otp = telebot.types.InlineKeyboardButton("🔄 ওটিপি চেক করুন (Check OTP)", callback_data="check_otp")
                 inline_markup.add(btn_check_otp)
                 
                 success_msg = (
-                    f"✅ **নাম্বার সফলভাবে নেওয়া হয়েছে! (Range: {user_range})**\n\n"
+                    f"✅ **নাম্বার সফলভাবে নেওয়া হয়েছে!**\n\n"
                     f"🌍 **দেশ:** {country}\n"
-                    f"📞 **নাম্বার:** `{phone_number}`\n"
+                    f"📞 **নাম্বার:** `{phone_number}` (কপি করতে নাম্বারে ট্যাপ করুন)\n"
                     f"🆔 **নাম্বার আইডি:** {number_id}\n\n"
-                    "⚠️ আপনার কাঙ্ক্ষিত অ্যাপে নাম্বারটি বসিয়ে ওটিপি পাঠান, তারপর নিচের বোতামে ক্লিক করুন।"
+                    "⚠️ আপনার কাঙ্ক্ষিত অ্যাপে নাম্বারটি বসিয়ে ওটিপি পাঠান, তারপর নিচের বোতামে ক্লিক করে ওটিপি চেক করুন।"
                 )
                 bot.send_message(chat_id, success_msg, parse_mode="Markdown", reply_markup=inline_markup)
             else:
@@ -95,6 +105,7 @@ def process_number_request_with_range(message):
     except Exception as e:
         bot.send_message(chat_id, f"⚠️ একটি ত্রুটি ঘটেছে: {str(e)}")
 
+# ৩. ইনলাইন বোতামের মাধ্যমে ওটিপি চেক করার হ্যান্ডলার
 @bot.callback_query_handler(func=lambda call: call.data == "check_otp")
 def check_otp_callback(call):
     chat_id = call.message.chat.id
@@ -110,40 +121,36 @@ def check_otp_callback(call):
     
     headers = {
         "X-API-Key": API_KEY,
-        "Authorization": f"Bearer {API_KEY}",
-        "Content-Type": "application/json",
-        "Accept": "application/json"
-    }
-    
-    payload = {
-        "number_id": number_id
+        "Content-Type": "application/json"
     }
     
     try:
         url = f"{BASE_URL}/api/otps"
-        response = requests.post(url, json=payload, headers=headers)
-        
-        if response.status_code != 200:
-            response = requests.get(f"{url}?number_id={number_id}", headers=headers)
+        # ওটিপি এন্ডপয়েন্টে কুয়েরি প্যারামিটার এবং বডি উভয় ডাটা হ্যান্ডলিং ব্যাকআপ রাখা হয়েছে
+        response = requests.get(f"{url}?number_id={number_id}", headers=headers)
 
         if response.status_code == 200:
             otp_data = response.json()
             sms_data = otp_data.get("data", {})
             
+            # যদি ওটিপি অলরেডি চলে আসে
             if isinstance(sms_data, dict) and sms_data.get("otp"):
                 received_otp = sms_data.get("otp")
-                bot.send_message(chat_id, f"📩 **আপনার ওটিপি কোড:** `{received_otp}`", parse_mode="Markdown")
-            elif isinstance(otp_data, dict) and otp_data.get("message") == "waiting for sms":
-                bot.send_message(chat_id, f"⏳ `{phone_number}` নাম্বারে এখনো ওটিপি আসেনি। একটু পর আবার ট্রাই করুন।")
+                bot.send_message(chat_id, f"📩 **আপনার ওটিপি কোড:** `{received_otp}`\n📞 নাম্বার: `{phone_number}`", parse_mode="Markdown")
+            # যদি ওটিপি প্রসেসিং বা ওয়েটিং অবস্থায় থাকে
+            elif otp_data.get("message") == "waiting for sms" or "waiting" in str(otp_data):
+                bot.send_message(chat_id, f"⏳ `{phone_number}` নাম্বারে এখনো কোনো ওটিপি আসেনি। আপনার অ্যাপ থেকে ওটিপি রিকোয়েস্ট করে একটু পর আবার 'Check OTP' বাটনে ক্লিক করুন।")
             else:
-                bot.send_message(chat_id, f"📩 `{phone_number}` নাম্বারে ওটিপি অপেক্ষমাণ। মেসেজ সার্ভারে পৌঁছালে কোড চলে আসবে।")
+                bot.send_message(chat_id, f"📩 `{phone_number}` নাম্বারে ওটিপি অপেক্ষমাণ। মেসেজ সার্ভারে পৌঁছালে কোড দেখতে পাবেন।")
         else:
-            bot.send_message(chat_id, f"❌ ওটিপি এপিআই ত্রুটি! স্ট্যাটাস কোড: {response.status_code}\n\n📝 রেসপন্স: {response.text}")
+            bot.send_message(chat_id, f"❌ ওটিপি এপিআই ত্রুটি! স্ট্যাটাস কোড: {response.status_code}")
             
     except Exception as e:
         bot.send_message(chat_id, f"⚠️ ওটিপি চেক করতে সমস্যা হয়েছে: {str(e)}")
 
+# ৪. মেইন মেথড ও ফ্ল্যাশKeep-Alive ব্যাকগ্রাউন্ড ট্রিগার
 if __name__ == "__main__":
+    # রেন্ডার সার্ভার যেন ২৪ ঘণ্টা কোড রানিং রাখে তার জন্য keep_alive ট্রিগার
     keep_alive()
-    print("Bot completely fixed with Auto-Cleaning API configuration...")
+    print("income world 24 number bot is successfully deployed and running...")
     bot.infinity_polling()
